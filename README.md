@@ -1,8 +1,6 @@
 runnable-api-client
 ===================
 
-[![Circle CI](https://circleci.com/gh/CodeNow/runnable-api-client.svg?style=svg&circle-token=6b0da78a80a32b3d72560972e22ab7bc6bf586ca)](https://circleci.com/gh/CodeNow/runnable-api-client)
-
 Runnable Api Client
 
 # Usage
