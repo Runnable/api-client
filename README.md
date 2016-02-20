@@ -1,6 +1,8 @@
 runnable-api-client
 ===================
 
+[![Build Status](https://travis-ci.org/Runnable/api-client.svg?branch=master)](https://travis-ci.org/Runnable/api-client)
+
 Runnable Api Client
 
 # Usage
