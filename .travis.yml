@@ -4,6 +4,7 @@ node_js:
 - '4.2'
 sudo: false
 before_install:
+- if [[ "$(npm --version)" =~ ^1\..+ ]]; then npm install -g npm@2; fi
 - npm install -g mocha
 notifications:
   email: false
