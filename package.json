@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/CodeNow/runnable-api-client.git"
+    "url": "https://github.com/Runnable/api-client.git"
   },
   "keywords": [
     "runnable",
@@ -43,7 +43,6 @@
     "json-hash": "0.0.4",
     "keypather": "^1.8.1",
     "request": "^2.36.0",
-    "runnable-hostname": "git+ssh://git@github.com:CodeNow/runnable-hostname#v1.0.4",
     "simple-api-client": "~0.6.0",
     "url-join": "0.0.1",
     "uuid": "~1.4.1",
