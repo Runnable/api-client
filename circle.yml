@@ -1,0 +1,11 @@
+dependencies:
+  override:
+    - npm install
+    - npm install mocha -g
+machine:
+  node:
+    version: v0.10.25
+test:
+  override:
+    - npm test
+
