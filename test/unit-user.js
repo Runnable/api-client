@@ -46,7 +46,10 @@ describe('user', function () {
     it('should fetch the user if the user was property authenticated', function (done) {
       var body = {};
       ctx.user.client.post.yields(null, {
-        statusCode: 200
+        statusCode: 200,
+        headers: {
+          'set-cookie': 'connect.sid=123412;'
+        }
       }, body);
 
       var callback = function (err) {
