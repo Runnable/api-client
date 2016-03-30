@@ -311,7 +311,7 @@ describe('user', function () {
         });
       });
 
-      describe.only('errors', function () {
+      describe('errors', function () {
         it('should clearly indicate invalid hostname for master', function (done) {
           var hostname = 'api-codenow.runnableapp.com';
           var localIp = '10.0.3.0';
