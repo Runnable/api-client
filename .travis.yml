@@ -1,10 +1,18 @@
 language: node_js
 node_js:
 - '0.10'
-- '4.2'
+- '4'
 sudo: false
 before_install:
 - if [[ "$(npm --version)" =~ ^1\..+ ]]; then npm install -g npm@2; fi
 - npm install -g mocha
 notifications:
   email: false
+deploy:
+  provider: npm
+  email: bryan@bryankendall.com
+  on:
+    node: '4'
+    tags: true
+  api_key:
+    secure: BucqFjDjmBmyy6/spmINmj4T6OY4v1dW1rhCzD93k8qyDUPISvTNgZLl7n3n2FMDDAqU+Q4QFSMW4kqHDS7fm5aCkWB0jmeS3+BwL4UtJWKX2uNZfbeLU5B2Tu71PLLXYq8LXUfP8D3iBZ7auqRKVpB80lt9ut8RjNLFijtz/0DxiCFa+k03J4kkccvYJJ04thEQlsgL6Ww/34aCgiTjqbFdkXa3bKTkVn1nvwk78wSDZ//QoMgyCYf4kCeiOeG+GZu2FsUYiDmUwVGEPN6gaiL3733n8Lk7J4MCfqekQBtA0QzaZCfpmlg6/jQhdoFyudxJD+s5irWqbQoXE/nBQ6sMXKUUS71dr3Wl1WEUls0n39mkozE3S/e6ui83wj1Uw1XeX+KNDz3cUgC5nCHaHoJFpdYKbiSDWGsOHkyWas/uIoJ7hlgM5wnu/HP/O06vdZCOV6WCF55YTmW9kHilNXyzehb4PSDqAS1vFFq4QRSGsdNjS6u7OsC+gFLPO5UTHZEKEg6LX275exMUlK/vr7jbuBNZNXl+GEpVeltI7djoJ6q7fox+dzpjsUWY1fN/keB8Z3HJKw9tWcGMYIDXcYsda+HS7dpnMWovOhkr+i2Af0a0lGh3ybhwUlNmneRTxoOcIC0lUrvRdLofKCM9zqi0Jo9nIZkXr8m1dNF70e0=
