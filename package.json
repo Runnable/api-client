@@ -34,7 +34,7 @@
   "homepage": "https://github.com/Runnable/api-client",
   "dependencies": {
     "101": "^1.1.0",
-    "@runnable/hostname": "git://github.com/Runnable/hostname.git#2a380c4fb69c0b517f408cb948ed3768c862f0c9",
+    "@runnable/hostname": "git://github.com/Runnable/hostname.git#add-isolation-check-to-urls",
     "boom": "~2.4.1",
     "clone": "^1.0.2",
     "debug": "~0.8.1",
