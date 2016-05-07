@@ -7,6 +7,7 @@ var noop = require('101/noop');
 var assign = require('101/assign');
 var parseUrl = require('url').parse;
 var Boom = require('boom');
+require('sinon-as-promised')(require('bluebird'))
 
 describe('user', function () {
   var ctx;
@@ -232,6 +233,88 @@ describe('user', function () {
         });
       });
     });
+    describe('_fetchMasterInstanceByHostname', function () {
+      beforeEach(function (done) {
+        ctx.mockInstance = {
+          attrs: {
+            owner: {
+              username: 'tjmehta'
+            },
+            network: {
+              hostIp: 'http://10.0.1.0'
+            },
+            container: {
+              dockerHost: '10.20.0.0'
+            }
+          }
+        };
+        ctx.mockDep = {
+          attrs: {
+            network: {
+              hostIp: 'http://10.0.2.0'
+            }
+          }
+        };
+        ctx.fetchInstancesAsync = sinon.stub(ctx.user, 'fetchInstancesAsync');
+        done();
+      });
+      afterEach(function (done) {
+        ctx.fetchInstancesAsync.restore();
+        done();
+      });
+
+      describe('success', function () {
+        it('should cb master instance if not isolated', function (done) {
+          var hostname = 'api-codenow.runnableapp.com';
+          ctx.fetchInstancesAsync.onFirstCall().resolves([ctx.mockInstance]);
+          ctx.fetchInstancesAsync.onSecondCall().resolves([ctx.mockDep]);
+          ctx.user._fetchMasterInstanceByHostname(hostname, false, function (err, instance) {
+            expect(err).to.not.exist();
+            expect(instance).to.exist();
+            expect(instance).to.equal(ctx.mockInstance);
+            done();
+          });
+        });
+
+        it('should cb isolated instance', function (done) {
+          var hostname = 'api-codenow.runnableapp.com';
+          ctx.fetchInstancesAsync.onFirstCall().resolves([ctx.mockInstance]);
+          ctx.fetchInstancesAsync.onSecondCall().resolves([ctx.mockDep]);
+          ctx.user._fetchMasterInstanceByHostname(hostname, true, function (err, instance) {
+            expect(err).to.not.exist();
+            expect(instance).to.exist();
+            expect(instance).to.equal(ctx.mockDep);
+            done();
+          });
+        });
+      });
+      describe('error', function () {
+        it('should throw hostname error when no instances return', function (done) {
+          var hostname = 'api-codenow.runnableapp.com';
+          ctx.fetchInstancesAsync.onFirstCall().resolves([]);
+          ctx.fetchInstancesAsync.onSecondCall().resolves([]);
+          ctx.user._fetchMasterInstanceByHostname(hostname, false, function (err, instance) {
+            expect(err).to.exist();
+            expect(instance).to.not.exist();
+            expect(err.message).to.equal('not a master hostname');
+            done();
+          });
+        });
+
+        it('should return error from the instance fetch', function (done) {
+          var hostname = 'api-codenow.runnableapp.com';
+          var error = new Error('BLARG');
+          ctx.fetchInstancesAsync.onFirstCall().resolves([]);
+          ctx.fetchInstancesAsync.onSecondCall().rejects(error);
+          ctx.user._fetchMasterInstanceByHostname(hostname, true, function (err, instance) {
+            expect(err).to.exist();
+            expect(instance).to.not.exist();
+            expect(err).to.equal(error);
+            done();
+          });
+        });
+      });
+    });
     describe('fetchInternalIpForHostname', function () {
       var dockerHost =  'http://10.12.199.84:4242';
       beforeEach(function (done) {
@@ -292,7 +375,7 @@ describe('user', function () {
         it('should cb internal ip of dep instance if found', function (done) {
           var hostname = 'api-codenow.runnableapp.com';
           var localIp = '10.0.3.0';
-          ctx.fetchDepSpy.yieldsAsync(null, ctx.mockDep);
+          ctx.fetchDepSpy.yieldsAsync(null, ctx.mockDep, ctx.in);
           ctx.fetchMasterSpy.yieldsAsync(null, null);
           ctx.user.fetchInternalIpForHostname(hostname, localIp, dockerHost, function (err, hostIp) {
             expect(err).to.not.exist();
