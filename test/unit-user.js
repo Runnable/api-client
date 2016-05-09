@@ -815,6 +815,7 @@ describe('user', function () {
               owner: {
                 username: 'tjmehta'
               },
+              isolated: 'asdfasdfsadfsadf',
               container: {
                 inspect: {}
               }
@@ -869,17 +870,21 @@ describe('user', function () {
               expect(backendUrl).to.equal(ctx.masterBackendUrl);
               done();
             });
-            expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
-            expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
-            var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
-            fetchMasterCb(null, ctx.mockInstance);
+
             expect(ctx.fetchDepSpy.calledOnce).to.be.true();
             expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
               hostname: parseUrl(refererUrl).hostname
             });
             expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(parseUrl(url).hostname);
             var fetchDepCb = last(ctx.fetchDepSpy.firstCall.args);
-            fetchDepCb(null, null);
+            fetchDepCb(null, null, ctx.mockInstance);
+
+            expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
+            expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
+            expect(ctx.fetchMasterSpy.firstCall.args[1]).to.deep.equal('asdfasdfsadfsadf');
+
+            var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
+            fetchMasterCb(null, ctx.mockInstance);
           });
 
           it('should cb backend url of master instance if dep not found', function (done) {
@@ -891,10 +896,6 @@ describe('user', function () {
               expect(backendUrl).to.equal(ctx.depBackendUrl);
               done();
             });
-            expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
-            expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
-            var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
-            fetchMasterCb(null, ctx.mockInstance);
             expect(ctx.fetchDepSpy.calledOnce).to.be.true();
             expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
               hostname: parseUrl(refererUrl).hostname
@@ -902,6 +903,11 @@ describe('user', function () {
             expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(parseUrl(url).hostname);
             var fetchDepCb = last(ctx.fetchDepSpy.firstCall.args);
             fetchDepCb(null, ctx.mockDep);
+
+            expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
+            expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
+            var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
+            fetchMasterCb(null, ctx.mockInstance);
           });
         });
 
@@ -916,6 +922,13 @@ describe('user', function () {
               expect(err).to.equal(fetchErr);
               done();
             });
+            expect(ctx.fetchDepSpy.calledOnce).to.be.true();
+            expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
+              hostname: parseUrl(refererUrl).hostname
+            });
+            expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(parseUrl(url).hostname);
+            var fetchDepCb = last(ctx.fetchDepSpy.firstCall.args);
+            fetchDepCb(null, null);
             expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
             expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
             var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
@@ -931,10 +944,6 @@ describe('user', function () {
               expect(err).to.equal(fetchErr);
               done();
             });
-            expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
-            expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
-            var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
-            fetchMasterCb(null, ctx.mockInstance);
             expect(ctx.fetchDepSpy.calledOnce).to.be.true();
             expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
               hostname: parseUrl(refererUrl).hostname
@@ -960,17 +969,18 @@ describe('user', function () {
                   expect(err.message).to.match(/no container/);
                   done();
                 });
-                expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
-                expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
-                var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
-                fetchMasterCb(null, ctx.mockInstance);
+
                 expect(ctx.fetchDepSpy.calledOnce).to.be.true();
                 expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
                   hostname: parseUrl(refererUrl).hostname
                 });
                 expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(parseUrl(url).hostname);
                 var fetchDepCb = last(ctx.fetchDepSpy.firstCall.args);
-                fetchDepCb(null, null);
+                fetchDepCb(null, null); expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
+
+                expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
+                var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
+                fetchMasterCb(null, ctx.mockInstance);
               });
             });
 
@@ -987,10 +997,7 @@ describe('user', function () {
                   expect(err.message).to.match(/instance/).to.match(/inspect failed/);
                   done();
                 });
-                expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
-                expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
-                var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
-                fetchMasterCb(null, ctx.mockInstance);
+
                 expect(ctx.fetchDepSpy.calledOnce).to.be.true();
                 expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
                   hostname: parseUrl(refererUrl).hostname
@@ -998,6 +1005,11 @@ describe('user', function () {
                 expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(parseUrl(url).hostname);
                 var fetchDepCb = last(ctx.fetchDepSpy.firstCall.args);
                 fetchDepCb(null, null);
+
+                expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
+                expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
+                var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
+                fetchMasterCb(null, ctx.mockInstance);
               });
             });
           });
