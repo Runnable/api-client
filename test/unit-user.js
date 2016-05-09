@@ -246,7 +246,8 @@ describe('user', function () {
             },
             container: {
               dockerHost: '10.20.0.0'
-            }
+            },
+            isolated: 'asdfsadfasdfsd'
           }
         };
         ctx.mockDep = {
@@ -270,7 +271,7 @@ describe('user', function () {
         it('should cb internal ip of master instance if dep not found', function (done) {
           var hostname = 'api-codenow.runnableapp.com';
           var localIp = '10.0.3.0';
-          ctx.fetchDepSpy.yieldsAsync(null, null);
+          ctx.fetchDepSpy.yieldsAsync(null, null, ctx.mockInstance);
           ctx.fetchMasterSpy.yieldsAsync(null, ctx.mockInstance);
           ctx.user.fetchInternalIpForHostname(hostname, localIp, dockerHost, function (err, hostIp) {
             expect(err).to.not.exist();
@@ -285,6 +286,7 @@ describe('user', function () {
             expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(hostname);
             expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
             expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(hostname);
+            expect(ctx.fetchMasterSpy.firstCall.args[1]).to.deep.equal('asdfsadfasdfsd');
 
             done();
           });
