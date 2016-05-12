@@ -1,6 +1,9 @@
+/*global describe: true, beforeEach:true, afterEach:true, it:true */
+/*jshint -W030 */
 /**
  * @module test/unit-instance
  */
+'use strict';
 var expect = require('chai').expect;
 var keypather = require('keypather')();
 var last = require('101/last');
@@ -8,7 +11,6 @@ var noop = require('101/noop');
 var put = require('101/put');
 var sinon = require('sinon');
 
-var Build = require('../lib/models/build');
 var Container = require('../lib/models/instance/container.js');
 var ContextVersion = require('../lib/models/context/version');
 var Instance = require('../lib/models/instance');
@@ -403,73 +405,174 @@ describe('instance model', function () {
     });
   });
 
-  describe('getDisplayName', function () {
+  describe('Instances Names', function () {
     var instance;
-    beforeEach(function () {
+    var githubUsername = 'tjmehta';
+    var branchName = 'branch-name';
+    var repoName = 'repo-name';
+    var acv;
+    beforeEach(function setup () {
+      acv = {
+        _id: 3,
+        repo: githubUsername + '/' + repoName,
+        branch: branchName
+      };
+      var owner = { github: 1, username: githubUsername };
+      ctx.instanceOpts.user = new User({}, modelOpts);
       instance = new Instance({
         _id: 0,
         shortHash: 'abcdef',
         name: 'instanceName', // masterPod instances name do not include branch
-        masterPod: true
+        owner: owner,
+        masterPod: true,
+        contextVersion: {
+          _id: 1,
+          context: '1234',
+          appCodeVersions: [acv, {
+            _id: 2,
+            additionalRepo: true,
+            repo: githubUsername + '/' + repoName,
+            branch: branchName + '2'
+          }]
+        }
       }, ctx.instanceOpts);
-      sinon.stub(instance, 'getBranchName').returns(null)
     });
-    it('should return branch name if not master pod', function (done) {
-      instance.getBranchName.returns('foo');
-      instance.attrs.masterPod = false;
-      expect(instance.getDisplayName()).to.equal('foo');
-      done()
-    });
-    it('should return name if master pod', function (done) {
-      instance.attrs.masterPod = true;
-      instance.getBranchName.returns('foo')
-      expect(instance.getDisplayName()).to.equal('instanceName');
-      done()
-    });
-    it('should return truncated name if name is isolated', function (done) {
-      instance.attrs.name = 'ShHash--TestName';
 
-      expect(instance.getDisplayName()).to.equal('TestName');
-      done()
+    describe('getBranchName', function () {
+      it('should get the branch name', function () {
+        expect(instance.getBranchName()).to.equal(branchName);
+      });
+      it('should be null if it doesnt exist', function () {
+        delete instance.contextVersion.appCodeVersions.models[0].attrs.branch;
+        expect(instance.getBranchName()).to.equal(undefined);
+      });
+    });
+
+    describe('getRepoName', function () {
+      it('should get the repo name', function () {
+        expect(instance.getRepoName()).to.equal(repoName);
+      });
+      it('should be null if it doesnt exist', function () {
+        delete instance.contextVersion.appCodeVersions.models[0].attrs.repo;
+        expect(instance.getRepoName()).to.equal(undefined);
+      });
+    });
+
+    describe('getDisplayName', function () {
+      beforeEach(function () {
+        sinon.stub(instance, 'getBranchName').returns(null);
+      });
+      afterEach(function () {
+        instance.getBranchName.restore();
+      });
+      it('should return branch name if not master pod', function (done) {
+        instance.getBranchName.returns('foo');
+        instance.attrs.masterPod = false;
+        expect(instance.getDisplayName()).to.equal('foo');
+        done();
+      });
+      it('should return name if master pod', function (done) {
+        instance.attrs.masterPod = true;
+        instance.getBranchName.returns('foo');
+        expect(instance.getDisplayName()).to.equal('instanceName');
+        done();
+      });
+      it('should return truncated name if name is isolated', function (done) {
+        instance.attrs.name = 'ShHash--TestName';
+
+        expect(instance.getDisplayName()).to.equal('TestName');
+        done();
+      });
+    });
+
+    describe('getRepoAndBranchName', function () {
+      beforeEach(function () {
+        sinon.stub(instance, 'getBranchName').returns('branch');
+        sinon.stub(instance, 'getRepoName').returns('repo');
+      });
+      afterEach(function () {
+        instance.getBranchName.restore();
+        instance.getRepoName.restore();
+      });
+      it('should return repo and branch name if they exist', function (done) {
+        expect(instance.getRepoAndBranchName()).to.equal('repo/branch');
+        done();
+      });
+      it('should return name if branch name does not exist', function (done) {
+        instance.getBranchName.returns(null);
+        expect(instance.getRepoAndBranchName()).to.equal('instanceName');
+        done();
+      });
+      it('should return name if repo name does not exist', function (done) {
+        instance.getRepoName.returns(null);
+        expect(instance.getRepoAndBranchName()).to.equal('instanceName');
+        done();
+      });
+      it('should return truncated name if name is isolated', function (done) {
+        instance.getBranchName.returns(null);
+        instance.getRepoName.returns(null);
+        instance.attrs.name = 'ShHash--TestName';
+        expect(instance.getRepoAndBranchName()).to.equal('TestName');
+        done();
+      });
+    });
+
+    describe('getName', function () {
+      it('should return the instance name', function () {
+        expect(instance.getName()).to.equal('instanceName');
+      });
+      it('should return the instance name when its in isolation', function () {
+        instance.attrs.name = '2gkj3l--instanceName';
+        expect(instance.getName()).to.equal('instanceName');
+      });
+      it('should return the instance name when it almost looks like in isolation', function () {
+        instance.attrs.name = '2gkj3l-instanceName';
+        expect(instance.getName()).to.equal('2gkj3l-instanceName');
+      });
+    });
+
+    describe('getMasterPodName', function () {
+      beforeEach(function () {
+        sinon.stub(instance, 'getBranchName').returns('master');
+        sinon.stub(instance, 'getName').returns('repo-name');
+      });
+      afterEach(function () {
+        instance.getBranchName.restore();
+        instance.getName.restore();
+      });
+      it('should handle the default master pod name', function () {
+        expect(instance.getMasterPodName()).to.equal('repo-name');
+      });
+      it('should handle the name having a branch name', function () {
+        instance.getBranchName.returns('branch-name');
+        instance.getName.returns('branch-name-super-repo-name');
+        expect(instance.getMasterPodName()).to.equal('super-repo-name');
+      });
+      it('should handle the branch and repo being name the same way', function () {
+        instance.getBranchName.returns('wow');
+        instance.getName.returns('wow-wow');
+        expect(instance.getMasterPodName()).to.equal('wow');
+      });
+    });
+
+    describe('getInstanceAndBranchName', function () {
+      beforeEach(function () {
+        sinon.stub(instance, 'getBranchName').returns('wow');
+        sinon.stub(instance, 'getName').returns('repo-name');
+      });
+      afterEach(function () {
+        instance.getBranchName.restore();
+        instance.getName.restore();
+      });
+      it('should only return the instance name if there is no branch', function () {
+        instance.getBranchName.returns(null);
+        expect(instance.getInstanceAndBranchName()).to.equal('repo-name');
+      });
+      it('should return the instance name with the branch name if there is a branch', function () {
+        expect(instance.getInstanceAndBranchName()).to.equal('repo-name/wow');
+      });
     });
   });
-
-  describe('getRepoAndBranchName', function () {
-    var instance;
-    beforeEach(function () {
-      instance = new Instance({
-        _id: 0,
-        shortHash: 'abcdef',
-        name: 'instanceName', // masterPod instances name do not include branch
-        masterPod: true
-      }, ctx.instanceOpts);
-      sinon.stub(instance, 'getBranchName').returns('branch')
-      sinon.stub(instance, 'getRepoName').returns('repo')
-    });
-    it('should return repo and branch name if they exist', function (done) {
-      expect(instance.getRepoAndBranchName()).to.equal('repo/branch');
-      done()
-    });
-    it('should return name if branch name does not exist', function (done) {
-      instance.getBranchName.returns(null)
-      expect(instance.getRepoAndBranchName()).to.equal('instanceName');
-      done()
-    });
-    it('should return name if repo name does not exist', function (done) {
-      instance.getRepoName.returns(null)
-      expect(instance.getRepoAndBranchName()).to.equal('instanceName');
-      done()
-    });
-    it('should return truncated name if name is isolated', function (done) {
-      instance.getBranchName.returns(null)
-      instance.getRepoName.returns(null)
-      instance.attrs.name = 'ShHash--TestName';
-      expect(instance.getRepoAndBranchName()).to.equal('TestName');
-      done()
-    });
-  });
-
-
 
   describe('URL generation', function () {
     var instance, instance2;
@@ -519,8 +622,10 @@ describe('instance model', function () {
     describe('getContainerHostname', function() {
 
       it('should get the container host', function () {
+        var hostname = instance.attrs.shortHash + '-' + instance.attrs.name;
+        hostname += '-staging-' + githubUsername + '.' + userContentDomain;
         expect(instance.getContainerHostname())
-          .to.equal((instance.attrs.shortHash + '-' + instance.attrs.name + '-staging-' + githubUsername + '.' + userContentDomain).toLowerCase());
+          .to.equal((hostname).toLowerCase());
       });
 
       describe('masterPod w/out branch', function () {
@@ -545,16 +650,19 @@ describe('instance model', function () {
           expect(instance2.getRepoAndBranchName()).to.equal(instance2.attrs.name);
         });
         it('should get the container host', function (done) {
+          var hostname = instance2.attrs.name + '-staging-';
+          hostname += githubUsername + '.' + userContentDomain;
           expect(instance2.getContainerHostname())
-            .to.equal((instance2.attrs.name + '-staging-' + githubUsername + '.' + userContentDomain).toLowerCase());
+            .to.equal((hostname).toLowerCase());
           done();
         });
       });
     });
 
     it('should get the elastic host', function () {
+      var hostname = instance.attrs.name + '-staging-' + githubUsername + '.' + userContentDomain;
       expect(instance.getElasticHostname())
-        .to.equal((instance.attrs.name + '-staging-' + githubUsername + '.' + userContentDomain).toLowerCase());
+        .to.equal((hostname).toLowerCase());
     });
   });
 
@@ -578,7 +686,6 @@ describe('instance model', function () {
       });
     });
     describe('is not Master', function () {
-      var instance;
       var githubUsername = 'tjmehta';
       var branchName = 'branch-name';
       var repoName = 'repo-name';
@@ -767,14 +874,12 @@ describe('instance model', function () {
       });
     });
     describe('cv update events', function() {
-      var instance, instance2;
       var githubUsername = 'tjmehta';
       var branchName = 'branch-name';
       var repoName = 'repo-name';
 
       beforeEach(function (done) {
         var myModelOpts = put(modelOpts, 'user.socket', ctx.mockSocket);
-        var owner = { github: 1, username: githubUsername };
         ctx.instance.contextVersion = new ContextVersion({
           _id: 1,
           context: '1234',
