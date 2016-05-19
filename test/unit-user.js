@@ -904,10 +904,7 @@ describe('user', function () {
             var fetchDepCb = last(ctx.fetchDepSpy.firstCall.args);
             fetchDepCb(null, ctx.mockDep);
 
-            expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
-            expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
-            var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
-            fetchMasterCb(null, ctx.mockInstance);
+            expect(ctx.fetchMasterSpy.notCalled).to.be.true();
           });
         });
 
