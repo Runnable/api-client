@@ -7,6 +7,7 @@ var noop = require('101/noop');
 var assign = require('101/assign');
 var parseUrl = require('url').parse;
 var Boom = require('boom');
+require('sinon-as-promised')(require('bluebird'))
 
 describe('user', function () {
   var ctx;
@@ -229,6 +230,247 @@ describe('user', function () {
               destInstanceId: testId
             })).to.be.true();
           done();
+        });
+      });
+    });
+    describe('fetchInternalIpForHostname', function () {
+      var dockerHost =  'http://10.12.199.84:4242';
+      beforeEach(function (done) {
+        ctx.mockInstance = {
+          attrs: {
+            owner: {
+              username: 'tjmehta'
+            },
+            network: {
+              hostIp: 'http://10.0.1.0'
+            },
+            container: {
+              dockerHost: '10.20.0.0'
+            },
+            isolated: 'asdfsadfasdfsd'
+          }
+        };
+        ctx.mockDep = {
+          attrs: {
+            network: {
+              hostIp: 'http://10.0.2.0'
+            }
+          }
+        };
+        ctx.fetchMasterSpy = sinon.stub(ctx.user, '_fetchMasterInstanceByHostname');
+        ctx.fetchDepSpy = sinon.stub(ctx.user, '_fetchInstanceAndDepWithHostname');
+        done();
+      });
+      afterEach(function (done) {
+        ctx.fetchMasterSpy.restore();
+        ctx.fetchDepSpy.restore();
+        done();
+      });
+
+      describe('success', function () {
+        it('should cb internal ip of master instance if dep not found', function (done) {
+          var hostname = 'api-codenow.runnableapp.com';
+          var localIp = '10.0.3.0';
+          ctx.fetchDepSpy.yieldsAsync(null, null, ctx.mockInstance);
+          ctx.fetchMasterSpy.yieldsAsync(null, ctx.mockInstance);
+          ctx.user.fetchInternalIpForHostname(hostname, localIp, dockerHost, function (err, hostIp) {
+            expect(err).to.not.exist();
+            expect(hostIp).to.exist();
+            expect(hostIp).to.equal(ctx.mockInstance.attrs.network.hostIp);
+
+            expect(ctx.fetchDepSpy.calledOnce).to.be.true();
+            expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
+              'container.inspect.NetworkSettings.IPAddress': localIp,
+              'container.dockerHost': dockerHost
+            });
+            expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(hostname);
+            expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
+            expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(hostname);
+            expect(ctx.fetchMasterSpy.firstCall.args[1]).to.deep.equal('asdfsadfasdfsd');
+
+            done();
+          });
+        });
+
+        it('should cb internal ip of dep instance if found', function (done) {
+          var hostname = 'api-codenow.runnableapp.com';
+          var localIp = '10.0.3.0';
+          ctx.fetchDepSpy.yieldsAsync(null, ctx.mockDep);
+          ctx.fetchMasterSpy.yieldsAsync(null, null);
+          ctx.user.fetchInternalIpForHostname(hostname, localIp, dockerHost, function (err, hostIp) {
+            expect(err).to.not.exist();
+            expect(hostIp).to.exist();
+            expect(hostIp).to.equal(ctx.mockDep.attrs.network.hostIp);
+
+            expect(ctx.fetchDepSpy.calledOnce).to.be.true();
+            expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
+              'container.inspect.NetworkSettings.IPAddress': localIp,
+              'container.dockerHost': dockerHost
+            });
+            expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(hostname);
+            expect(ctx.fetchMasterSpy.calledOnce).to.not.be.true();
+            done();
+          });
+        });
+      });
+
+      describe('errors', function () {
+        it('should clearly indicate invalid hostname for master', function (done) {
+          var hostname = 'api-codenow.runnableapp.com';
+          var localIp = '10.0.3.0';
+          ctx.fetchDepSpy.yieldsAsync(null, null);
+          ctx.fetchMasterSpy.restore(); // no spy
+          ctx.fetchInstancesSpy
+            .onCall(0)
+            .returns({ models: [] })
+            .yieldsAsync(Boom.badRequest('invalid hostname', { errorCode: 'INVALID_HOSTNAME' }));
+          ctx.user.fetchInternalIpForHostname(hostname, localIp, dockerHost, function (err, hostIp) {
+            expect(err).to.exist();
+            expect(err.errorType).to.equal('invalid-hostname');
+            expect(hostIp).to.not.exist();
+            expect(ctx.fetchInstancesSpy.calledOnce).to.be.true();
+            expect(ctx.fetchInstancesSpy.firstCall.args[0]).to.deep.equal({
+              hostname: hostname,
+              masterPod: true
+            });
+            done();
+          });
+        });
+
+        it('should clearly indicate an invalid hostname for dep', function (done) {
+          var hostname = 'api-codenow.runnableapp.com';
+          var localIp = '10.0.3.0';
+          ctx.fetchInstancesSpy
+            .onCall(0)
+            .returns({ models: [ctx.mockInstance] })
+            .yieldsAsync(null, ctx.mockInstance);
+          ctx.fetchDepSpy.yieldsAsync(Boom.badRequest('invalid hostname', { errorCode: 'INVALID_HOSTNAME' }));
+          ctx.user.fetchInternalIpForHostname(hostname, localIp, dockerHost, function (err, hostIp) {
+            expect(err).to.exist();
+            expect(err.errorType).to.equal('invalid-hostname');
+            expect(hostIp).to.not.exist();
+            done();
+          });
+        });
+
+        it('should clearly indicate if master instance w/ hostname not found', function (done) {
+          var hostname = 'api-codenow.runnableapp.com';
+          var localIp = '10.0.3.0';
+          ctx.fetchMasterSpy.restore(); // no spy
+          ctx.fetchDepSpy.yieldsAsync(null, null);
+          ctx.fetchInstancesSpy
+            .onCall(0)
+            .returns({ models: [] })
+            .yieldsAsync(null, []);
+          ctx.user.fetchInternalIpForHostname(hostname, localIp, dockerHost, function (err, hostIp) {
+            expect(err).to.exist();
+            expect(err.errorType).to.equal('not-master-hostname')
+            expect(hostIp).to.not.exist();
+
+            expect(ctx.fetchInstancesSpy.calledOnce).to.be.true();
+            expect(ctx.fetchInstancesSpy.firstCall.args[0]).to.deep.equal({
+              hostname: hostname,
+              masterPod: true
+            });
+            done();
+          });
+        });
+
+        it('should callback an error if _fetchMasterInstanceByHostname errors', function (done) {
+          var hostname = 'api-codenow.runnableapp.com';
+          var localIp = '10.0.3.0';
+          ctx.fetchDepSpy.yieldsAsync(null, null);
+          var fetchErr = new Error();
+          ctx.fetchMasterSpy.yieldsAsync(fetchErr);
+          ctx.user.fetchInternalIpForHostname(hostname, localIp, dockerHost, function (err) {
+            expect(err).to.exist();
+            expect(err).to.equal(fetchErr);
+            expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
+            expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(hostname);
+            done();
+          });
+        });
+
+        it('should callback an error if _fetchInstanceAndDepWithHostname errors', function (done) {
+          var hostname = 'api-codenow.runnableapp.com';
+          var localIp = '10.0.3.0';
+          var fetchErr = new Error();
+          ctx.fetchMasterSpy.yieldsAsync(null, null);
+          ctx.fetchDepSpy.yieldsAsync(fetchErr);
+          ctx.user.fetchInternalIpForHostname(hostname, localIp, dockerHost, function (err) {
+            expect(err).to.exist();
+            expect(err).to.equal(fetchErr);
+            expect(ctx.fetchDepSpy.calledOnce).to.be.true();
+            expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
+              'container.inspect.NetworkSettings.IPAddress': localIp,
+              'container.dockerHost': dockerHost
+            });
+            expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(hostname);
+            expect(ctx.fetchMasterSpy.calledOnce).to.not.be.true();
+            done();
+          });
+        });
+
+        it('should gracefully handle missing `network.hostIp`', function(done) {
+          var missingHostIp = {
+            attrs: {
+              owner: {
+                username: 'tjmehta'
+              },
+              network: {
+              },
+              container: {
+                dockerHost: '10.20.0.0'
+              }
+            }
+          };
+          var hostname = 'api-codenow.runnableapp.com';
+          var localIp = '10.0.3.0';
+          ctx.fetchMasterSpy.yieldsAsync(null, missingHostIp);
+          ctx.fetchDepSpy.yieldsAsync(null, missingHostIp);
+          ctx.user.fetchInternalIpForHostname(hostname, localIp, dockerHost, function (err) {
+            expect(err).to.exist();
+            expect(err.message).to.match(/network\.hostIp/);
+            expect(ctx.fetchDepSpy.calledOnce).to.be.true();
+            expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
+              'container.inspect.NetworkSettings.IPAddress': localIp,
+              'container.dockerHost': dockerHost
+            });
+            expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(hostname);
+            expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
+            expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(hostname);
+            done();
+          });
+        });
+
+        it('should gracefully handle missing `network`', function(done) {
+          var missingHostIp = {
+            attrs: {
+              owner: {
+                username: 'tjmehta'
+              },
+              container: {
+                dockerHost: '10.20.0.0'
+              }
+            }
+          };
+          var hostname = 'api-codenow.runnableapp.com';
+          var localIp = '10.0.3.0';
+          ctx.fetchMasterSpy.yieldsAsync(null, missingHostIp);
+          ctx.fetchDepSpy.yieldsAsync(null, missingHostIp);
+          ctx.user.fetchInternalIpForHostname(hostname, localIp, dockerHost, function (err) {
+            expect(err).to.exist();
+            expect(err.message).to.match(/network\.hostIp/);
+            expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
+            expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(hostname);
+            expect(ctx.fetchDepSpy.calledOnce).to.be.true();
+            expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
+              'container.inspect.NetworkSettings.IPAddress': localIp,
+              'container.dockerHost': dockerHost
+            });
+            expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(hostname);
+            done();
+          });
         });
       });
     });
@@ -573,6 +815,7 @@ describe('user', function () {
               owner: {
                 username: 'tjmehta'
               },
+              isolated: 'asdfasdfsadfsadf',
               container: {
                 inspect: {}
               }
@@ -627,17 +870,21 @@ describe('user', function () {
               expect(backendUrl).to.equal(ctx.masterBackendUrl);
               done();
             });
-            expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
-            expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
-            var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
-            fetchMasterCb(null, ctx.mockInstance);
+
             expect(ctx.fetchDepSpy.calledOnce).to.be.true();
             expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
               hostname: parseUrl(refererUrl).hostname
             });
             expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(parseUrl(url).hostname);
             var fetchDepCb = last(ctx.fetchDepSpy.firstCall.args);
-            fetchDepCb(null, null);
+            fetchDepCb(null, null, ctx.mockInstance);
+
+            expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
+            expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
+            expect(ctx.fetchMasterSpy.firstCall.args[1]).to.deep.equal('asdfasdfsadfsadf');
+
+            var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
+            fetchMasterCb(null, ctx.mockInstance);
           });
 
           it('should cb backend url of master instance if dep not found', function (done) {
@@ -649,10 +896,6 @@ describe('user', function () {
               expect(backendUrl).to.equal(ctx.depBackendUrl);
               done();
             });
-            expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
-            expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
-            var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
-            fetchMasterCb(null, ctx.mockInstance);
             expect(ctx.fetchDepSpy.calledOnce).to.be.true();
             expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
               hostname: parseUrl(refererUrl).hostname
@@ -660,6 +903,8 @@ describe('user', function () {
             expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(parseUrl(url).hostname);
             var fetchDepCb = last(ctx.fetchDepSpy.firstCall.args);
             fetchDepCb(null, ctx.mockDep);
+
+            expect(ctx.fetchMasterSpy.notCalled).to.be.true();
           });
         });
 
@@ -674,6 +919,13 @@ describe('user', function () {
               expect(err).to.equal(fetchErr);
               done();
             });
+            expect(ctx.fetchDepSpy.calledOnce).to.be.true();
+            expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
+              hostname: parseUrl(refererUrl).hostname
+            });
+            expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(parseUrl(url).hostname);
+            var fetchDepCb = last(ctx.fetchDepSpy.firstCall.args);
+            fetchDepCb(null, null);
             expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
             expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
             var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
@@ -689,10 +941,6 @@ describe('user', function () {
               expect(err).to.equal(fetchErr);
               done();
             });
-            expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
-            expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
-            var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
-            fetchMasterCb(null, ctx.mockInstance);
             expect(ctx.fetchDepSpy.calledOnce).to.be.true();
             expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
               hostname: parseUrl(refererUrl).hostname
@@ -718,17 +966,18 @@ describe('user', function () {
                   expect(err.message).to.match(/no container/);
                   done();
                 });
-                expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
-                expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
-                var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
-                fetchMasterCb(null, ctx.mockInstance);
+
                 expect(ctx.fetchDepSpy.calledOnce).to.be.true();
                 expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
                   hostname: parseUrl(refererUrl).hostname
                 });
                 expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(parseUrl(url).hostname);
                 var fetchDepCb = last(ctx.fetchDepSpy.firstCall.args);
-                fetchDepCb(null, null);
+                fetchDepCb(null, null); expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
+
+                expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
+                var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
+                fetchMasterCb(null, ctx.mockInstance);
               });
             });
 
@@ -745,10 +994,7 @@ describe('user', function () {
                   expect(err.message).to.match(/instance/).to.match(/inspect failed/);
                   done();
                 });
-                expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
-                expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
-                var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
-                fetchMasterCb(null, ctx.mockInstance);
+
                 expect(ctx.fetchDepSpy.calledOnce).to.be.true();
                 expect(ctx.fetchDepSpy.firstCall.args[0]).to.deep.equal({
                   hostname: parseUrl(refererUrl).hostname
@@ -756,6 +1002,11 @@ describe('user', function () {
                 expect(ctx.fetchDepSpy.firstCall.args[1]).to.equal(parseUrl(url).hostname);
                 var fetchDepCb = last(ctx.fetchDepSpy.firstCall.args);
                 fetchDepCb(null, null);
+
+                expect(ctx.fetchMasterSpy.calledOnce).to.be.true();
+                expect(ctx.fetchMasterSpy.firstCall.args[0]).to.deep.equal(parseUrl(url).hostname);
+                var fetchMasterCb = last(ctx.fetchMasterSpy.firstCall.args);
+                fetchMasterCb(null, ctx.mockInstance);
               });
             });
           });
@@ -840,9 +1091,10 @@ describe('user', function () {
         ctx.fetchInstancesSpy
           .onCall(0)
           .returns({ models: [ instance ] });
-        ctx.user._fetchInstanceAndDepWithHostname(query, hostname, function (err, dep) {
+        ctx.user._fetchInstanceAndDepWithHostname(query, hostname, function (err, dep, inst) {
           expect(err).to.not.exist();
           expect(dep).to.equal(dependency);
+          expect(inst).to.equal(instance);
           done();
         });
         expect(ctx.fetchInstancesSpy.calledOnce).to.equal(true);
