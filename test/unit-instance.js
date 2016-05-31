@@ -675,14 +675,18 @@ describe('instance model', function () {
    * Master has extra build files
    * Master has 1 build file that has been changed
    */
-  describe('getParentConfigStatus', function () {
+  describe('doesMatchMasterPod', function () {
     describe('is Master', function () {
-      it('should return true when instance is masterpod', function () {
+      it('should return true when instance is masterpod', function (done) {
         ctx.instance.attrs.masterPod = true;
-        ctx.instance.fetchParentConfigStatus(function () {
-          expect(ctx.instance.configStatusValid).to.be.true;
-          expect(ctx.instance.cachedConfigStatus).to.be.true;
-        });
+        ctx.instance.doesMatchMasterPod()
+          .then(function (isMatch) {
+            expect(isMatch).to.be.true;
+          })
+          .then(function () {
+            expect(ctx.instance.configStatusPromise).to.not.be.null();
+          })
+          .asCallback(done)
       });
     });
     describe('is not Master', function () {
@@ -728,20 +732,15 @@ describe('instance model', function () {
         done();
       });
       beforeEach(function (done) {
-        ctx.instance.user.fetchInstances = sinon.stub()
-          .returns(ctx.masterInstanceCollection)
-          .yieldsAsync(
-            null,
-            ctx.masterInstanceCollection
-          );
+        ctx.instance.masterPodInstance = ctx.masterInstance;
         done();
       });
       it('should return true when they are basically the same', function (done) {
-        ctx.instance.fetchParentConfigStatus(function () {
-          expect(ctx.instance.configStatusValid).to.be.true;
-          expect(ctx.instance.cachedConfigStatus).to.be.true;
-          done();
-        });
+        ctx.instance.doesMatchMasterPod()
+          .then(function (isMatch) {
+            expect(isMatch).to.be.true;
+          })
+          .asCallback(done)
       });
 
       it('should return false when their files are the same', function (done) {
@@ -757,20 +756,20 @@ describe('instance model', function () {
           Key: '/instanceId/source/file.txt',
           hash: 'adsfasdfadsfsadf'
         });
-        ctx.instance.fetchParentConfigStatus(function () {
-          expect(ctx.instance.configStatusValid).to.be.true;
-          expect(ctx.instance.cachedConfigStatus).to.be.true;
-          done();
-        });
+        ctx.instance.doesMatchMasterPod()
+          .then(function (isMatch) {
+            expect(isMatch).to.be.true;
+          })
+          .asCallback(done)
       });
 
       it('should return false when their envs are out of sync', function (done) {
         ctx.masterInstance.attrs.env = ['fsadfasdfads', 'asdfadsf'];
-        ctx.instance.fetchParentConfigStatus(function () {
-          expect(ctx.instance.configStatusValid).to.be.true;
-          expect(ctx.instance.cachedConfigStatus).to.be.false;
-          done();
-        });
+        ctx.instance.doesMatchMasterPod()
+          .then(function (isMatch) {
+            expect(isMatch).to.be.false;
+          })
+          .asCallback(done)
       });
 
       it('should return false when their transformRules are out of sync', function (done) {
@@ -781,11 +780,11 @@ describe('instance model', function () {
             from: 'adsfsdfadsf'
           }
         };
-        ctx.instance.fetchParentConfigStatus(function () {
-          expect(ctx.instance.configStatusValid).to.be.true;
-          expect(ctx.instance.cachedConfigStatus).to.be.false;
-          done();
-        });
+        ctx.instance.doesMatchMasterPod()
+          .then(function (isMatch) {
+            expect(isMatch).to.be.false;
+          })
+          .asCallback(done)
       });
 
       it('should return false when their file counts are out of sync', function (done) {
@@ -795,11 +794,11 @@ describe('instance model', function () {
           Key: '/instanceId/source/file.txt',
           hash: 'adsfasdfadsfsadf'
         });
-        ctx.instance.fetchParentConfigStatus(function () {
-          expect(ctx.instance.configStatusValid).to.be.true;
-          expect(ctx.instance.cachedConfigStatus).to.be.false;
-          done();
-        });
+        ctx.instance.doesMatchMasterPod()
+          .then(function (isMatch) {
+            expect(isMatch).to.be.false;
+          })
+          .asCallback(done)
       });
 
       it('should return false when their files are different', function (done) {
@@ -815,41 +814,35 @@ describe('instance model', function () {
           Key: '/instanceId/source/file.txt',
           hash: 'dfhgdfhdsfghadfsgsdf'
         });
-        ctx.instance.fetchParentConfigStatus(function () {
-          expect(ctx.instance.configStatusValid).to.be.true;
-          expect(ctx.instance.cachedConfigStatus).to.be.false;
-          done();
-        });
+        ctx.instance.doesMatchMasterPod()
+          .then(function (isMatch) {
+            expect(isMatch).to.be.false;
+          })
+          .asCallback(done)
       });
-      it('should return false first, then again when cache is valid, then true when invalidated',
-          function (done) {
+      it('should return false first, then true after the cache is cleared', function (done) {
         ctx.masterInstance.contextVersion.rootDir.contents.add({
           name: 'file.txt',
           path: '/',
           Key: '/instanceId/source/file.txt',
           hash: 'adsfasdfadsfsadf'
         });
-        ctx.instance.fetchParentConfigStatus(function () {
-          expect(ctx.instance.configStatusValid).to.be.true;
-          expect(ctx.instance.cachedConfigStatus).to.be.false;
-
-          ctx.instance.contextVersion.rootDir.contents.add({
-            name: 'file.txt',
-            path: '/',
-            Key: '/instanceId/source/file.txt',
-            hash: 'adsfasdfadsfsadf'
-          });
-          ctx.instance.fetchParentConfigStatus(function () {
-            expect(ctx.instance.configStatusValid).to.be.true;
-            expect(ctx.instance.cachedConfigStatus).to.be.false;
-            ctx.instance.configStatusValid = false;
-            ctx.instance.fetchParentConfigStatus(function () {
-              expect(ctx.instance.configStatusValid).to.be.true;
-              expect(ctx.instance.cachedConfigStatus).to.be.true;
-              done();
+        ctx.instance.doesMatchMasterPod()
+          .then(function (isMatch) {
+            expect(isMatch).to.be.false;
+            ctx.instance.contextVersion.rootDir.contents.add({
+              name: 'file.txt',
+              path: '/',
+              Key: '/instanceId/source/file.txt',
+              hash: 'adsfasdfadsfsadf'
             });
-          });
-        });
+            ctx.instance.configStatusPromise = null;
+            return ctx.instance.doesMatchMasterPod()
+          })
+          .then(function (isMatch) {
+            expect(isMatch).to.be.true;
+          })
+          .asCallback(done)
       });
     });
   });
