@@ -817,7 +817,7 @@ describe('user', function () {
         fetchInstancesCb(fetchErr); // respond empty here.. use return value for expects
       });
 
-      it('should callback undefined if instance not found', function (done) {
+      it('should callback 404 if instance not found', function (done) {
         var query = {};
         var hostname = 'api-codenow.runnableapp.com';
         var instances = [ ];
@@ -825,8 +825,8 @@ describe('user', function () {
           .onCall(0)
           .returns({ models: instances });
         ctx.user._fetchInstanceAndDepWithHostname(query, hostname, function (err, dependency) {
-          expect(err).to.not.exist(err);
-          expect(dependency).to.equal(undefined);
+          expect(err.output.statusCode).to.equal(404);
+          expect(err.message).to.equal('referer instance not found');
           done();
         });
         expect(ctx.fetchInstancesSpy.calledOnce).to.equal(true);
