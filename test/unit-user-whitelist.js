@@ -17,18 +17,19 @@ var modelOpts = {
   client: mockClient,
   userContentDomain: userContentDomain
 };
+
 describe('user-whitelist', function () {
   var ctx;
-
+  var yesterday;
+  var twoWeeks;
   beforeEach(function (done) {
     ctx = {};
+    yesterday = moment().subtract(2, 'hours').utc()
+    twoWeeks = moment().add(2, 'weeks').utc()
     done();
   });
 
-
   describe('payment stuff', function () {
-    var yesterday;
-    var twoWeeks;
     describe('is active', function () {
       beforeEach(function () {
         yesterday = moment().subtract(2, 'hours').utc()
@@ -38,7 +39,6 @@ describe('user-whitelist', function () {
           gracePeriodEnd: twoWeeks,
           activePeriodEnd: twoWeeks
         }, modelOpts);
-
       });
 
       it('should be active', function (done) {
@@ -54,16 +54,14 @@ describe('user-whitelist', function () {
         done();
       });
     });
+
     describe('is in trial', function () {
       beforeEach(function () {
-        yesterday = moment().subtract(2, 'hours').utc()
-        twoWeeks = moment().add(2, 'weeks').utc()
         ctx.userWhitelist = new UserWhitelist({
           trialEnd: twoWeeks,
           gracePeriodEnd: twoWeeks,
           activePeriodEnd: yesterday
         }, modelOpts);
-
       });
 
       it('should not be active', function (done) {
@@ -79,6 +77,7 @@ describe('user-whitelist', function () {
         done();
       });
     });
+
     describe('is in grace', function () {
       beforeEach(function () {
         yesterday = moment().subtract(2, 'hours').utc()
@@ -88,7 +87,6 @@ describe('user-whitelist', function () {
           gracePeriodEnd: twoWeeks,
           activePeriodEnd: yesterday
         }, modelOpts);
-
       });
 
       it('should not be active', function (done) {
@@ -104,6 +102,5 @@ describe('user-whitelist', function () {
         done();
       });
     });
-
   });
 });
