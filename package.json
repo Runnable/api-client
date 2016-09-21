@@ -1,6 +1,6 @@
 {
   "name": "@runnable/api-client",
-  "version": "9.2.1",
+  "version": "9.2.2",
   "description": "Runnable API Client",
   "main": "index.js",
   "scripts": {
