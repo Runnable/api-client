@@ -46,7 +46,6 @@
     "moment": "^2.14.1",
     "request": "^2.36.0",
     "simple-api-client": "~0.6.0",
-    "sinon-as-promised": "^4.0.0",
     "url-join": "0.0.1",
     "uuid": "~1.4.1",
     "xtend": "^3.0.0"
@@ -60,7 +59,8 @@
     "grunt-mocha": "^0.4.11",
     "mocha": "^2.5.3",
     "nodemon": "~1.10.2",
-    "sinon": "^1.14.1"
+    "sinon": "^1.14.1",
+    "sinon-as-promised": "^4.0.3"
   },
   "testling": {
     "browsers": [
