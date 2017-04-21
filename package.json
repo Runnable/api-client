@@ -47,7 +47,7 @@
     "request": "^2.36.0",
     "simple-api-client": "~0.6.0",
     "url-join": "0.0.1",
-    "uuid": "~1.4.1",
+    "uuid": "~3.0.0",
     "xtend": "^3.0.0"
   },
   "devDependencies": {
