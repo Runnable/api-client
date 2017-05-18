@@ -46,7 +46,7 @@
     "moment": "^2.14.1",
     "request": "^2.36.0",
     "simple-api-client": "~0.6.0",
-    "url-join": "0.0.1",
+    "url-join": "2.0.2",
     "uuid": "~1.4.1",
     "xtend": "^3.0.0"
   },
